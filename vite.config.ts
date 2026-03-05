@@ -5,7 +5,10 @@ import {defineConfig, loadEnv} from 'vite';
 
 export default defineConfig(({mode}) => {
   loadEnv(mode, '.', '');
+  // Use VITE_BASE_PATH env var for GitHub Pages (e.g. /Smart-Campus/), default to /
+  const base = process.env.VITE_BASE_PATH ?? '/';
   return {
+    base,
     plugins: [react(), tailwindcss()],
     resolve: {
       alias: {
