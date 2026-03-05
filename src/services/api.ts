@@ -12,6 +12,17 @@ import type {
 
 const API_ROOT = "/api/v1";
 
+type PaginatedResponse<T> = {
+  count: number;
+  next: string | null;
+  previous: string | null;
+  results: T[];
+};
+
+function asList<T>(payload: T[] | PaginatedResponse<T>): T[] {
+  return Array.isArray(payload) ? payload : payload.results ?? [];
+}
+
 async function withAuthRetry<T>(requestFn: () => Promise<Response>): Promise<T> {
   let response = await requestFn();
   if (response.status === 401) {
@@ -72,11 +83,13 @@ export async function loginDemoTeacher(): Promise<void> {
 }
 
 export async function fetchStudents(): Promise<StudentSummary[]> {
-  return http<StudentSummary[]>("/students/");
+  const payload = await http<StudentSummary[] | PaginatedResponse<StudentSummary>>("/students/");
+  return asList(payload);
 }
 
 export async function fetchInterventions(schoolId: number): Promise<InterventionItem[]> {
-  return http<InterventionItem[]>(`/interventions/?school=${schoolId}`);
+  const payload = await http<InterventionItem[] | PaginatedResponse<InterventionItem>>(`/interventions/?school=${schoolId}`);
+  return asList(payload);
 }
 
 export async function fetchPulse(schoolId: number): Promise<PulseSnapshot> {
@@ -93,7 +106,8 @@ export async function fetchTimeline(): Promise<ParentTimelineItem[]> {
 }
 
 export async function fetchAttendanceByDate(date: string): Promise<AttendanceRecord[]> {
-  return http<AttendanceRecord[]>(`/attendance/?date=${date}`);
+  const payload = await http<AttendanceRecord[] | PaginatedResponse<AttendanceRecord>>(`/attendance/?date=${date}`);
+  return asList(payload);
 }
 
 export async function bulkMarkAttendance(

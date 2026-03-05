@@ -188,6 +188,14 @@ Enable production flags:
 - `ENABLE_REALTIME_PUSH=true`
 - set `DB_*`, `REDIS_URL`, `CELERY_*`, `DJANGO_SECRET_KEY`, `DJANGO_DEBUG=false`
 
+Containerized stack is available via:
+
+```bash
+docker compose up --build
+```
+
+It starts `frontend`, `backend`, `celery`, `postgres`, and `redis`.
+
 ## 9. Environment Variables
 
 Core:
@@ -235,7 +243,25 @@ Queue/realtime:
 - Swagger: `/api/schema/swagger/`
 - Redoc: `/api/schema/redoc/`
 
-## 12. Troubleshooting
+## 12. Automated Testing
+
+Backend tests (pytest):
+
+```bash
+cd backend
+pytest
+```
+
+Frontend checks:
+
+```bash
+npm run lint
+npm run build
+```
+
+CI pipeline is configured in `.github/workflows/ci.yml`.
+
+## 13. Troubleshooting
 
 ### `ModuleNotFoundError: celery`
 
@@ -280,7 +306,7 @@ $env:USE_ASYNC_TASKS="false"
 $env:ENABLE_REALTIME_PUSH="false"
 ```
 
-## 13. Operational Checklist
+## 14. Operational Checklist
 
 Before every session:
 

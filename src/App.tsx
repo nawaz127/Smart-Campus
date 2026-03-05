@@ -260,18 +260,18 @@ export default function App() {
                     <GraduationCap className="h-5 w-5 text-emerald-200" />
                   </div>
                   <div className="grid grid-cols-2 gap-2">
-                    <SummaryStat label="Total Students" value={`${summary?.totals.students ?? students.length}`} />
-                    <SummaryStat label="Active Classes" value={`${summary?.totals.classes ?? classOptions.length}`} />
-                    <SummaryStat label="AI Logs" value={`${summary?.totals.ai_logs ?? 0}`} />
-                    <SummaryStat label="Open Interventions" value={`${summary?.totals.open_interventions ?? interventions.length}`} />
+                    <SummaryStat label="Total Students" value={`${summary?.totals?.students ?? students.length}`} />
+                    <SummaryStat label="Active Classes" value={`${summary?.totals?.classes ?? classOptions.length}`} />
+                    <SummaryStat label="AI Logs" value={`${summary?.totals?.ai_logs ?? 0}`} />
+                    <SummaryStat label="Open Interventions" value={`${summary?.totals?.open_interventions ?? interventions.length}`} />
                   </div>
                   <div className="mt-3 rounded-lg border border-slate-500/40 bg-slate-900/60 p-3 text-xs">
                     <p className="mb-1 uppercase tracking-[0.18em] text-slate-400">Attendance Command</p>
-                    <p className="mono text-lg text-cyan-100">Today {summary?.attendance.today_rate?.toFixed(1) ?? "0.0"}%</p>
+                    <p className="mono text-lg text-cyan-100">Today {summary?.attendance?.today_rate?.toFixed(1) ?? "0.0"}%</p>
                     <p className="text-slate-300">
-                      Present {summary?.attendance.today_present ?? 0} | Absent {summary?.attendance.today_absent ?? 0} | Late {summary?.attendance.today_late ?? 0}
+                      Present {summary?.attendance?.today_present ?? 0} | Absent {summary?.attendance?.today_absent ?? 0} | Late {summary?.attendance?.today_late ?? 0}
                     </p>
-                    <p className="mt-1 text-slate-400">30-day stability: {summary?.attendance.thirty_day_rate?.toFixed(1) ?? "0.0"}%</p>
+                    <p className="mt-1 text-slate-400">30-day stability: {summary?.attendance?.thirty_day_rate?.toFixed(1) ?? "0.0"}%</p>
                   </div>
                 </article>
 
@@ -281,14 +281,14 @@ export default function App() {
                     <AlertTriangle className="h-5 w-5 text-amber-200" />
                   </div>
                   <div className="space-y-2 text-sm">
-                    <RiskBar label="Stable" color="bg-emerald-300" value={summary?.risk_distribution.stable ?? 0} total={(summary?.totals.students ?? students.length) || 1} />
-                    <RiskBar label="Watch" color="bg-amber-300" value={summary?.risk_distribution.watch ?? 0} total={(summary?.totals.students ?? students.length) || 1} />
-                    <RiskBar label="Critical" color="bg-rose-300" value={summary?.risk_distribution.critical ?? 0} total={(summary?.totals.students ?? students.length) || 1} />
+                    <RiskBar label="Stable" color="bg-emerald-300" value={summary?.risk_distribution?.stable ?? 0} total={(summary?.totals?.students ?? students.length) || 1} />
+                    <RiskBar label="Watch" color="bg-amber-300" value={summary?.risk_distribution?.watch ?? 0} total={(summary?.totals?.students ?? students.length) || 1} />
+                    <RiskBar label="Critical" color="bg-rose-300" value={summary?.risk_distribution?.critical ?? 0} total={(summary?.totals?.students ?? students.length) || 1} />
                   </div>
                   <div className="mt-3 rounded-lg border border-slate-500/40 bg-slate-900/60 p-3 text-xs text-slate-300">
-                    Avg Score: <span className="mono text-cyan-100">{summary?.academics.average_score?.toFixed(1) ?? "0.0"}</span>
+                    Avg Score: <span className="mono text-cyan-100">{summary?.academics?.average_score?.toFixed(1) ?? "0.0"}</span>
                     <br />
-                    Avg Success Prediction: <span className="mono text-cyan-100">{summary?.academics.average_success_prediction?.toFixed(1) ?? "0.0"}%</span>
+                    Avg Success Prediction: <span className="mono text-cyan-100">{summary?.academics?.average_success_prediction?.toFixed(1) ?? "0.0"}%</span>
                   </div>
                 </article>
 
@@ -298,7 +298,7 @@ export default function App() {
                     <Sparkles className="h-5 w-5 text-violet-200" />
                   </div>
                   <div className="space-y-3">
-                    {(summary?.recent_alerts.length ? summary.recent_alerts : interventions.slice(0, 5)).map((item: any) => (
+                    {(summary?.recent_alerts?.length ? summary.recent_alerts : interventions.slice(0, 5)).map((item: any) => (
                       <div key={item.id} className="rounded-xl border border-slate-500/40 bg-slate-900/60 p-3">
                         <div className="mb-2 flex items-center justify-between">
                           <p className="font-semibold text-white">{item.student_name}</p>

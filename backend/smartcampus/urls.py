@@ -3,6 +3,7 @@ from django.db import connections
 from django.db.utils import OperationalError
 from django.http import JsonResponse
 from django.urls import include, path
+from django.views.generic import RedirectView
 from drf_spectacular.views import SpectacularAPIView, SpectacularRedocView, SpectacularSwaggerView
 
 
@@ -35,6 +36,7 @@ urlpatterns = [
     path("readyz/", readyz, name="readyz"),
     path("admin/", admin.site.urls),
     path("api/v1/", include("api.urls")),
+    path("api/docs/", RedirectView.as_view(pattern_name="swagger-ui", permanent=False), name="api-docs"),
     path("api/schema/", SpectacularAPIView.as_view(), name="schema"),
     path("api/schema/swagger/", SpectacularSwaggerView.as_view(url_name="schema"), name="swagger-ui"),
     path("api/schema/redoc/", SpectacularRedocView.as_view(url_name="schema"), name="redoc"),
