@@ -1,0 +1,5 @@
+{
+  "name": "Smart Campus SaaS",
+  "description": "A multi-tenant SaaS platform for school operations, featuring real-time attendance, academic results, and AI-driven student performance prediction.",
+  "requestFramePermissions": []
+}

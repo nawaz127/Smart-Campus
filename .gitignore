@@ -1,0 +1,24 @@
+node_modules/
+build/
+dist/
+coverage/
+.DS_Store
+*.log
+.env*
+!.env.example
+
+# Python
+.venv/
+venv/
+backend/.venv/
+__pycache__/
+*.py[cod]
+*.sqlite3
+
+# Django runtime artifacts
+backend/db.sqlite3
+backend/staticfiles/
+backend/media/
+
+# OS/editor
+.vscode/*.log
