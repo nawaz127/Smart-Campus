@@ -1,7 +1,7 @@
 from django.contrib.auth import get_user_model
 from rest_framework import serializers
 
-from academics.models import AcademicRecord, Attendance, InterventionQueue, Student
+from academics.models import AcademicRecord, Attendance, AuditLog, InterventionQueue, Student, TeacherAssignment
 from analytics_engine.models import AIInferenceLog, CampusPulseSnapshot
 from campus.models import School
 
@@ -15,25 +15,61 @@ class SchoolSerializer(serializers.ModelSerializer):
 
 
 class UserSerializer(serializers.ModelSerializer):
+    password = serializers.CharField(write_only=True, required=False, min_length=8)
+
     class Meta:
         model = User
-        fields = ["id", "email", "username", "role", "phone", "school"]
+        fields = ["id", "email", "username", "role", "phone", "school", "is_active", "password"]
+
+    def create(self, validated_data):
+        password = validated_data.pop("password", None)
+        user = User(**validated_data)
+        if password:
+            user.set_password(password)
+        else:
+            user.set_unusable_password()
+        user.save()
+        return user
+
+    def update(self, instance, validated_data):
+        password = validated_data.pop("password", None)
+        for key, value in validated_data.items():
+            setattr(instance, key, value)
+        if password:
+            instance.set_password(password)
+        instance.save()
+        return instance
 
 
 class StudentSerializer(serializers.ModelSerializer):
+    parent_name = serializers.CharField(source="parent.email", read_only=True)
+
     class Meta:
         model = Student
         fields = [
             "id",
             "school",
             "parent",
+            "parent_name",
             "student_code",
             "full_name",
             "class_name",
             "roll_number",
             "success_prediction",
             "focus_score",
+            "is_archived",
         ]
+
+    def validate(self, attrs):
+        school = attrs.get("school") or getattr(self.instance, "school", None)
+        student_code = attrs.get("student_code") or getattr(self.instance, "student_code", None)
+        if school and student_code:
+            qs = Student.objects.filter(school=school, student_code=student_code)
+            if self.instance:
+                qs = qs.exclude(id=self.instance.id)
+            if qs.exists():
+                raise serializers.ValidationError({"student_code": "Student code must be unique per school."})
+        return attrs
 
 
 class AcademicRecordSerializer(serializers.ModelSerializer):
@@ -81,3 +117,20 @@ class CampusPulseSerializer(serializers.ModelSerializer):
             "finance_component",
             "captured_at",
         ]
+
+
+class TeacherAssignmentSerializer(serializers.ModelSerializer):
+    teacher_name = serializers.CharField(source="teacher.email", read_only=True)
+
+    class Meta:
+        model = TeacherAssignment
+        fields = ["id", "school", "teacher", "teacher_name", "class_name", "subject", "created_at"]
+        read_only_fields = ["created_at"]
+
+
+class AuditLogSerializer(serializers.ModelSerializer):
+    actor_email = serializers.CharField(source="actor.email", read_only=True)
+
+    class Meta:
+        model = AuditLog
+        fields = ["id", "school", "actor", "actor_email", "action", "target_type", "target_id", "payload", "created_at"]

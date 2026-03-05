@@ -1,10 +1,35 @@
 export interface StudentSummary {
   id: number;
+  school: number;
+  parent: number;
+  parent_name?: string;
   student_code: string;
   full_name: string;
   class_name: string;
+  roll_number?: number;
   success_prediction: number;
   focus_score: number;
+  is_archived?: boolean;
+}
+
+export interface UserProfile {
+  id: number;
+  email: string;
+  username: string;
+  role: "ADMIN" | "TEACHER" | "PARENT";
+  phone: string;
+  school: number | null;
+  is_active: boolean;
+}
+
+export interface TeacherAssignment {
+  id: number;
+  school: number;
+  teacher: number;
+  teacher_name: string;
+  class_name: string;
+  subject: string;
+  created_at: string;
 }
 
 export interface InterventionItem {

@@ -22,9 +22,7 @@ body,
 body {
 	margin: 0;
 	font-family: "Inter", sans-serif;
-	background: radial-gradient(circle at 20% 15%, #134569 0%, transparent 35%),
-		radial-gradient(circle at 80% 5%, #354b26 0%, transparent 40%),
-		linear-gradient(125deg, var(--bg-0), var(--bg-1));
+	background: #eef1f6;
 }
 
 .mission-bg {

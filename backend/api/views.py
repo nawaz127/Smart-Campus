@@ -1,5 +1,6 @@
 from datetime import timedelta
 
+from django.contrib.auth import get_user_model
 from django.db.models import Avg, Count, Q
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
@@ -7,22 +8,28 @@ from rest_framework import permissions, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
-from academics.models import AcademicRecord, Attendance, InterventionQueue, Student
+from academics.models import AcademicRecord, Attendance, AuditLog, InterventionQueue, Student, TeacherAssignment
 from analytics_engine.models import AIInferenceLog, CampusPulseSnapshot
 from analytics_engine.tasks import update_student_success_prediction
 from campus.models import School
 from notifications.realtime import publish_attendance_update, publish_parent_timeline_event
+from .services.audit import log_action
 
-from .permissions import IsAdminOrTeacher, IsParentRole
+from .permissions import IsAdminOrTeacher, IsAdminRole, IsParentRole
 from .serializers import (
     AIInferenceLogSerializer,
     AcademicRecordSerializer,
+    AuditLogSerializer,
     AttendanceSerializer,
     CampusPulseSerializer,
     InterventionQueueSerializer,
     SchoolSerializer,
     StudentSerializer,
+    TeacherAssignmentSerializer,
+    UserSerializer,
 )
+
+User = get_user_model()
 
 
 class SchoolViewSet(viewsets.ReadOnlyModelViewSet):
@@ -45,10 +52,42 @@ class StudentViewSet(viewsets.ModelViewSet):
         base = super().get_queryset()
         user = self.request.user
         if user.role == "PARENT":
-            return base.filter(parent=user)
+            return base.filter(parent=user, is_archived=False)
         if user.role == "TEACHER":
-            return base.filter(school=user.school)
-        return base
+            return base.filter(school=user.school, is_archived=False)
+        return base.filter(is_archived=False)
+
+    def perform_create(self, serializer):
+        user = self.request.user
+        if user.role == "TEACHER":
+            serializer.save(school=user.school)
+        else:
+            serializer.save()
+
+    def perform_update(self, serializer):
+        user = self.request.user
+        student = serializer.instance
+        if user.role == "TEACHER" and student.school_id != user.school_id:
+            raise permissions.PermissionDenied("Teachers can only edit students in their school.")
+        updated_student = serializer.save()
+        log_action(
+            actor=user,
+            action="student.updated",
+            target_type="Student",
+            target_id=updated_student.id,
+            payload={"class_name": updated_student.class_name, "parent": updated_student.parent_id},
+        )
+
+    def perform_destroy(self, instance):
+        instance.is_archived = True
+        instance.save(update_fields=["is_archived"])
+        log_action(
+            actor=self.request.user,
+            action="student.archived",
+            target_type="Student",
+            target_id=instance.id,
+            payload={"student_code": instance.student_code},
+        )
 
     @action(detail=True, methods=["post"], permission_classes=[IsAdminOrTeacher])
     def trigger_prediction(self, request, pk=None):
@@ -68,7 +107,14 @@ class AcademicRecordViewSet(viewsets.ModelViewSet):
         return [IsAdminOrTeacher()]
 
     def perform_create(self, serializer):
-        serializer.save(created_by=self.request.user)
+        record = serializer.save(created_by=self.request.user)
+        log_action(
+            actor=self.request.user,
+            action="academic_record.created",
+            target_type="AcademicRecord",
+            target_id=record.id,
+            payload={"student": record.student_id, "score": record.score, "subject": record.subject},
+        )
 
     def get_queryset(self):
         base = super().get_queryset()
@@ -92,6 +138,13 @@ class AttendanceViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         attendance = serializer.save(teacher=self.request.user)
+        log_action(
+            actor=self.request.user,
+            action="attendance.marked",
+            target_type="Attendance",
+            target_id=attendance.id,
+            payload={"student": attendance.student_id, "status": attendance.status, "date": str(attendance.date)},
+        )
         publish_attendance_update(
             school_id=attendance.student.school_id,
             payload={
@@ -148,6 +201,13 @@ class AttendanceViewSet(viewsets.ModelViewSet):
                 },
             )
             updated += 1
+            log_action(
+                actor=request.user,
+                action="attendance.bulk_marked",
+                target_type="Attendance",
+                target_id=f"{attendance.student_id}:{attendance.date}",
+                payload={"status": attendance.status, "date": str(attendance.date)},
+            )
 
             publish_attendance_update(
                 school_id=attendance.student.school_id,
@@ -338,3 +398,96 @@ class SystemSummaryViewSet(viewsets.ViewSet):
                 ],
             }
         )
+
+
+class ProfileViewSet(viewsets.ViewSet):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def list(self, request):
+        return Response(UserSerializer(request.user).data)
+
+
+class UserManagementViewSet(viewsets.ModelViewSet):
+    queryset = User.objects.select_related("school").all().order_by("email")
+    serializer_class = UserSerializer
+    filterset_fields = ["role", "school", "is_active"]
+    search_fields = ["email", "username"]
+
+    def get_permissions(self):
+        if self.action in {"list", "retrieve"}:
+            return [IsAdminOrTeacher()]
+        return [IsAdminRole()]
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        user = self.request.user
+        if user.role == "TEACHER":
+            return qs.filter(role="PARENT", school=user.school)
+        if user.role == "ADMIN":
+            return qs.filter(school=user.school)
+        return qs.none()
+
+    def perform_create(self, serializer):
+        user = serializer.save()
+        log_action(
+            actor=self.request.user,
+            action="user.created",
+            target_type="User",
+            target_id=user.id,
+            payload={"email": user.email, "role": user.role},
+        )
+
+    def perform_update(self, serializer):
+        user = serializer.save()
+        log_action(
+            actor=self.request.user,
+            action="user.updated",
+            target_type="User",
+            target_id=user.id,
+            payload={"email": user.email, "role": user.role, "is_active": user.is_active},
+        )
+
+
+class TeacherAssignmentViewSet(viewsets.ModelViewSet):
+    queryset = TeacherAssignment.objects.select_related("school", "teacher").all().order_by("class_name", "subject")
+    serializer_class = TeacherAssignmentSerializer
+    filterset_fields = ["school", "teacher", "class_name", "subject"]
+
+    def get_permissions(self):
+        if self.action in {"list", "retrieve"}:
+            return [IsAdminOrTeacher()]
+        return [IsAdminRole()]
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        user = self.request.user
+        if user.role in {"ADMIN", "TEACHER"}:
+            return qs.filter(school=user.school)
+        return qs.none()
+
+    def perform_create(self, serializer):
+        assignment = serializer.save()
+        log_action(
+            actor=self.request.user,
+            action="teacher_assignment.created",
+            target_type="TeacherAssignment",
+            target_id=assignment.id,
+            payload={
+                "teacher": assignment.teacher_id,
+                "class_name": assignment.class_name,
+                "subject": assignment.subject,
+            },
+        )
+
+
+class AuditLogViewSet(viewsets.ReadOnlyModelViewSet):
+    queryset = AuditLog.objects.select_related("school", "actor").all().order_by("-created_at")
+    serializer_class = AuditLogSerializer
+    filterset_fields = ["school", "action", "target_type", "actor"]
+
+    def get_permissions(self):
+        return [IsAdminRole()]
+
+    def get_queryset(self):
+        user = self.request.user
+        return super().get_queryset().filter(school=user.school)
